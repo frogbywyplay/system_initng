@@ -186,10 +186,12 @@ static void initng_hard(h_then t)
 	initng_unload_module_unload_all();
 
 	/* make sure all fds but stdin, stdout, stderr is closed */
+	/*produce sgfault on our targets
+	 * our target have a "ro" rootfs
 	for (i = 3; i <= 1013; i++)
 	{
 		close(i);
-	}
+	}*/
 
 	/* last sync data to disk */
 	sync();
