@@ -55,8 +55,6 @@
 
 // imported from libobf.so as dynamic plugin
 void *lib_ptr = NULL;
-static int (*_obf_obfuscate)(const char *input, uint8_t **output, size_t *output_size) = NULL;
-static int (*_obf_free)(uint8_t *output) = NULL;
 static int (*_obf_exist)(const char *db_path, const char *input) = NULL;
 #endif // PROCESS_WHITELIST //
 
@@ -232,18 +230,6 @@ int module_init(int api_version)
 	if(!lib_ptr)
 	{
 		fprintf(stderr, "Cannot open shared lib '/usr/lib/libobf.so' \n");
-		return (FALSE);
-	}
-	_obf_obfuscate = dlsym(lib_ptr, "obf_obfuscate");
-	if (!_obf_obfuscate)
-	{
-		fprintf(stderr, "Cannot find 'obf_obfuscate' in shared lib\n");
-		return (FALSE);
-	}
-	_obf_free = dlsym(lib_ptr, "obf_free");
-	if (!_obf_free)
-	{
-		fprintf(stderr, "Cannot find 'obf_free' in shared lib\n");
 		return (FALSE);
 	}
 	_obf_exist = dlsym(lib_ptr, "obf_exist");
