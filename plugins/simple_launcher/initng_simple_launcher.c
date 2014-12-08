@@ -46,6 +46,17 @@
 #include <initng_static_event_types.h>
 #include <initng_event_hook.h>
 
+#ifdef PROCESS_WHITELIST
+#include <dlfcn.h>
+#include <stdint.h>
+
+// imported from libobf.so as dynamic plugin
+void *lib_ptr = NULL;
+static int (*_obf_obfuscate)(const char *input, uint8_t **output, size_t *output_size) = NULL;
+static int (*_obf_free)(uint8_t *output) = NULL;
+static int (*_obf_exist)(const char *db_path, const char *input) = NULL;
+#endif // PROCESS_WHITELIST //
+
 INITNG_PLUGIN_MACRO;
 
 s_entry EXEC = { "exec", VARIABLE_STRING, NULL,
@@ -358,6 +369,18 @@ static int simple_exec(active_db_h * service, process_h * process)
 			continue;
 		}
 
+#ifdef PROCESS_WHITELIST
+		int obj_result = _obf_exist("/etc/initng/initng_whitelist", exec);
+		if(obj_result == -1) {
+			F_("simple_run(): Unauthenticated daemon!\n ERROR!\n");
+			continue;
+		}
+		if(obj_result == -2) {
+			F_("simple_run(): Error using libobf (db : /usr/share/initng_whitelist)!\n ERROR!\n");
+			continue;
+		}
+#endif // PROCESS_WHITELIST //
+
 		/* Try to execute that one */
 		res = simple_exec_try(exec_fixed, service, process);
 
@@ -388,6 +411,17 @@ static int simple_run(active_db_h * service, process_h * process)
 	if (!exec)
 		return (FALSE);
 
+#ifdef PROCESS_WHITELIST
+	int obj_result = _obf_exist("/etc/initng/initng_whitelist", exec);
+	if(obj_result == -1) {
+		F_("simple_run(): Unauthenticated daemon '%s'!\n ERROR!\n", exec);
+		return (FALSE);
+	}
+	if(obj_result == -2) {
+		F_("simple_run(): Error using libobf (db : /usr/share/initng_whitelist)!\n ERROR!\n");
+		return (FALSE);
+	}
+#endif // PROCESS_WHITELIST //
 
 	/* be aware that fix_variables() return is a malloc, and needs to be free */
 	exec_fixed = fix_variables(exec, service);
@@ -494,6 +528,34 @@ int module_init(int api_version)
 		return (FALSE);
 	}
 
+#ifdef PROCESS_WHITELIST
+	// Load the obfuscation (libobf.so) plugin
+	lib_ptr = dlopen("/usr/lib/libobf.so", RTLD_NOW );
+	if(!lib_ptr)
+	{
+		fprintf(stderr, "Cannot open shared lib '/usr/lib/libobf.so' \n");
+		return (FALSE);
+	}
+	_obf_obfuscate = dlsym(lib_ptr, "obf_obfuscate");
+	if (!_obf_obfuscate)
+	{
+		fprintf(stderr, "Cannot find 'obf_obfuscate' in shared lib\n");
+		return (FALSE);
+	}
+	_obf_free = dlsym(lib_ptr, "obf_free");
+	if (!_obf_free)
+	{
+		fprintf(stderr, "Cannot find 'obf_free' in shared lib\n");
+		return (FALSE);
+	}
+	_obf_exist = dlsym(lib_ptr, "obf_exist");
+	if (!_obf_exist)
+	{
+		fprintf(stderr, "Cannot find 'obf_exist' in shared lib\n");
+		return (FALSE);
+	}
+#endif // PROCESS_WHITELIST //
+
 	initng_event_hook_register(&EVENT_LAUNCH, &initng_s_launch);
 	initng_service_data_type_register(&EXEC);
 	initng_service_data_type_register(&EXECS);
@@ -504,6 +566,14 @@ int module_init(int api_version)
 void module_unload(void)
 {
 	D_("initng_simple_plugin: module_unload();\n");
+
+#ifdef PROCESS_WHITELIST
+	if(lib_ptr)
+	{
+		dlclose(lib_ptr);
+		lib_ptr = NULL;
+	}
+#endif // PROCESS_WHITELIST //
 
 	initng_service_data_type_unregister(&EXEC);
 	initng_service_data_type_unregister(&EXECS);

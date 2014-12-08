@@ -108,6 +108,11 @@ OPTION(FORCE_POSIX_IFILES "Force POSIX compliance on ifiles" OFF)
 OPTION(WITH_BUSYBOX "Hacks to make initng work nice with busybox distros" OFF)
 OPTION(COUNT_ME "Send a simple http reqest to initng server, with initng version data to count initng users out there" OFF)
 
+OPTION(PROCESS_WHITELIST "Build initng launchers with process whitelisting support" OFF)
+
+IF(PROCESS_WHITELIST)
+	ADD_DEFINITIONS(-DPROCESS_WHITELIST)
+ENDIF(PROCESS_WHITELIST)
 
 IF(BUILD_SELINUX)
 	CHECK_INCLUDE_FILES(selinux/selinux.h HAVE_SELINUX_H)

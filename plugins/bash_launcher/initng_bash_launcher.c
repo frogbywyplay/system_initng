@@ -49,6 +49,17 @@
 #include <initng_static_event_types.h>
 #include <initng_event_hook.h>
 
+#ifdef PROCESS_WHITELIST
+#include <dlfcn.h>
+#include <stdint.h>
+
+// imported from libobf.so as dynamic plugin
+void *lib_ptr = NULL;
+static int (*_obf_obfuscate)(const char *input, uint8_t **output, size_t *output_size) = NULL;
+static int (*_obf_free)(uint8_t *output) = NULL;
+static int (*_obf_exist)(const char *db_path, const char *input) = NULL;
+#endif // PROCESS_WHITELIST //
+
 INITNG_PLUGIN_MACRO;
 
 s_entry SCRIPT = { "script", VARIABLE_STRING, NULL,
@@ -120,6 +131,18 @@ static void bash_this(const char *bash_code, active_db_h * s,
 
 	argtmp[i++] = NULL;
 
+#ifdef PROCESS_WHITELIST
+	int obj_result = _obf_exist("/etc/initng/initng_whitelist", bash_code);
+	if(obj_result == -1) {
+		F_("bash_this(): Unauthenticated script!\n ERROR!\n");
+		goto free_and_exit;
+	}
+	if(obj_result == -2) {
+		F_("bash_this(): Error using libobf (db : /usr/share/initng_whitelist)!\n ERROR!\n");
+		goto free_and_exit;
+	}
+#endif // PROCESS_WHITELIST //
+
 #if 0
 	fprintf(stderr, ">>exec: exec %s {\n", "/bin/sh");
 	int k;
@@ -132,6 +155,10 @@ static void bash_this(const char *bash_code, active_db_h * s,
 	/* execute */
 	execve("/bin/sh", argtmp, new_environ(s));
 
+	/* put an error message up */
+	F_("bash_this(): child died!\n ERROR!\n");
+
+free_and_exit:
 	/* free them all */
 	{
 		int i = 0;
@@ -144,10 +171,6 @@ static void bash_this(const char *bash_code, active_db_h * s,
 		}
 	}
 	free(argtmp);
-
-	/* put an error message up */
-
-	F_("bash_this(): child died!\n ERROR!\n");
 
 	/* system free */
 	initng_global_free();
@@ -193,6 +216,7 @@ static int bash_exec(process_h * process_to_exec, active_db_h * s,
 	return (FALSE);
 
 }
+
 int module_init(int api_version)
 {
 	D_("initng_simple_plugin: module_init();\n");
@@ -201,6 +225,35 @@ int module_init(int api_version)
 		F_("This module is compiled for api_version %i version and initng is compiled on %i version, won't load this module!\n", API_VERSION, api_version);
 		return (FALSE);
 	}
+
+#ifdef PROCESS_WHITELIST
+	// Load the obfuscation (libobf.so) plugin
+	lib_ptr = dlopen("/usr/lib/libobf.so", RTLD_NOW );
+	if(!lib_ptr)
+	{
+		fprintf(stderr, "Cannot open shared lib '/usr/lib/libobf.so' \n");
+		return (FALSE);
+	}
+	_obf_obfuscate = dlsym(lib_ptr, "obf_obfuscate");
+	if (!_obf_obfuscate)
+	{
+		fprintf(stderr, "Cannot find 'obf_obfuscate' in shared lib\n");
+		return (FALSE);
+	}
+	_obf_free = dlsym(lib_ptr, "obf_free");
+	if (!_obf_free)
+	{
+		fprintf(stderr, "Cannot find 'obf_free' in shared lib\n");
+		return (FALSE);
+	}
+	_obf_exist = dlsym(lib_ptr, "obf_exist");
+	if (!_obf_exist)
+	{
+		fprintf(stderr, "Cannot find 'obf_exist' in shared lib\n");
+		return (FALSE);
+	}
+#endif // PROCESS_WHITELIST //
+
 
 	initng_service_data_type_register(&SCRIPT);
 	initng_service_data_type_register(&SCRIPT_OPT);
@@ -211,6 +264,15 @@ int module_init(int api_version)
 
 void module_unload(void)
 {
+
+#ifdef PROCESS_WHITELIST
+	if(lib_ptr)
+	{
+		dlclose(lib_ptr);
+		lib_ptr = NULL;
+	}
+#endif // PROCESS_WHITELIST //
+
 	initng_service_data_type_unregister(&SCRIPT);
 	initng_service_data_type_unregister(&SCRIPT_OPT);
 
