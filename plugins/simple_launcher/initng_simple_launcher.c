@@ -47,12 +47,19 @@
 #include <initng_event_hook.h>
 
 #ifdef PROCESS_WHITELIST
+#ifdef PROCESS_WHITELIST_KERNEL
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <obfmod-ioctl.h>
+
+#else // not PROCESS_WHITELIST_KERNEL //
 #include <dlfcn.h>
 #include <stdint.h>
 
 // imported from libobf.so as dynamic plugin
 void *lib_ptr = NULL;
 static int (*_obf_exist)(const char *db_path, const char *input) = NULL;
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 INITNG_PLUGIN_MACRO;
@@ -368,15 +375,36 @@ static int simple_exec(active_db_h * service, process_h * process)
 		}
 
 #ifdef PROCESS_WHITELIST
+#ifdef PROCESS_WHITELIST_KERNEL
+		int whitelist_fd = 0;
+		whitelist_fd = open("/dev/whitelist_initng", O_RDWR);
+		if(whitelist_fd == -1){
+			F_("simple_run(): Cannot open whitelist!\n ERROR!\n");
+		#ifndef PROCESS_WHITELIST_KERNEL_DEV
+			continue;
+		#endif
+		}
+		obf_ioctl_arg_t whitelist_arg;
+		whitelist_arg.str = exec;
+		if (whitelist_fd != -1 && ioctl(whitelist_fd, IOCTL_OBF_EXIST, &whitelist_arg) < 0) {
+			F_("simple_run(): Unauthenticated daemon '%s'!\n ERROR!\n", exec);
+		#ifndef PROCESS_WHITELIST_KERNEL_DEV
+			continue;
+		#endif
+		}
+		if(whitelist_fd != -1)
+			close(whitelist_fd);
+#else // not PROCESS_WHITELIST_KERNEL //
 		int obj_result = _obf_exist("/etc/initng/initng_whitelist", exec);
 		if(obj_result == -1) {
-			F_("simple_run(): Unauthenticated daemon!\n ERROR!\n");
+			F_("simple_run(): Unauthenticated daemon '%s'!\n ERROR!\n", exec);
 			continue;
 		}
 		if(obj_result == -2) {
 			F_("simple_run(): Error using libobf (db : /usr/share/initng_whitelist)!\n ERROR!\n");
 			continue;
 		}
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 		/* Try to execute that one */
@@ -410,6 +438,26 @@ static int simple_run(active_db_h * service, process_h * process)
 		return (FALSE);
 
 #ifdef PROCESS_WHITELIST
+#ifdef PROCESS_WHITELIST_KERNEL
+	int whitelist_fd = 0;
+	whitelist_fd = open("/dev/whitelist_initng", O_RDWR);
+	if(whitelist_fd == -1){
+		F_("simple_run(): Cannot open whitelist!\n ERROR!\n");
+	#ifndef PROCESS_WHITELIST_KERNEL_DEV
+		return (FALSE);
+	#endif
+	}
+	obf_ioctl_arg_t whitelist_arg;
+	whitelist_arg.str = exec;
+	if (whitelist_fd != -1 && ioctl(whitelist_fd, IOCTL_OBF_EXIST, &whitelist_arg) < 0) {
+		F_("simple_run(): Unauthenticated daemon '%s'!\n ERROR!\n", exec);
+	#ifndef PROCESS_WHITELIST_KERNEL_DEV
+		return (FALSE);
+	#endif
+	}
+	if(whitelist_fd != -1)
+		close(whitelist_fd);
+#else // not PROCESS_WHITELIST_KERNEL //
 	int obj_result = _obf_exist("/etc/initng/initng_whitelist", exec);
 	if(obj_result == -1) {
 		F_("simple_run(): Unauthenticated daemon '%s'!\n ERROR!\n", exec);
@@ -419,6 +467,7 @@ static int simple_run(active_db_h * service, process_h * process)
 		F_("simple_run(): Error using libobf (db : /usr/share/initng_whitelist)!\n ERROR!\n");
 		return (FALSE);
 	}
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 	/* be aware that fix_variables() return is a malloc, and needs to be free */
@@ -527,6 +576,7 @@ int module_init(int api_version)
 	}
 
 #ifdef PROCESS_WHITELIST
+#ifndef PROCESS_WHITELIST_KERNEL
 	// Load the obfuscation (libobf.so) plugin
 	lib_ptr = dlopen("/usr/lib/libobf.so", RTLD_NOW );
 	if(!lib_ptr)
@@ -540,6 +590,7 @@ int module_init(int api_version)
 		fprintf(stderr, "Cannot find 'obf_exist' in shared lib\n");
 		return (FALSE);
 	}
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 	initng_event_hook_register(&EVENT_LAUNCH, &initng_s_launch);
@@ -554,11 +605,13 @@ void module_unload(void)
 	D_("initng_simple_plugin: module_unload();\n");
 
 #ifdef PROCESS_WHITELIST
+#ifndef PROCESS_WHITELIST_KERNEL
 	if(lib_ptr)
 	{
 		dlclose(lib_ptr);
 		lib_ptr = NULL;
 	}
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 	initng_service_data_type_unregister(&EXEC);

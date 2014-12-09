@@ -108,10 +108,19 @@ OPTION(FORCE_POSIX_IFILES "Force POSIX compliance on ifiles" OFF)
 OPTION(WITH_BUSYBOX "Hacks to make initng work nice with busybox distros" OFF)
 OPTION(COUNT_ME "Send a simple http reqest to initng server, with initng version data to count initng users out there" OFF)
 
-OPTION(PROCESS_WHITELIST "Build initng launchers with process whitelisting support" OFF)
+OPTION(PROCESS_WHITELIST "Build initng launchers with process whitelisting support using libobf plugin" OFF)
+OPTION(PROCESS_WHITELIST_KERNEL "Process whitelisting support use the libobf kernel module instead of the plugin (require PROCESS_WHITELIST)" OFF)
+OPTION(PROCESS_WHITELIST_KERNEL_DEV "Only print errors without forced failure" OFF)
 
 IF(PROCESS_WHITELIST)
 	ADD_DEFINITIONS(-DPROCESS_WHITELIST)
+	IF(PROCESS_WHITELIST_KERNEL)
+		ADD_DEFINITIONS(-DPROCESS_WHITELIST_KERNEL)
+	ENDIF(PROCESS_WHITELIST_KERNEL)
+
+	IF(PROCESS_WHITELIST_KERNEL_DEV)
+		ADD_DEFINITIONS(-DPROCESS_WHITELIST_KERNEL_DEV)
+	ENDIF(PROCESS_WHITELIST_KERNEL_DEV)
 ENDIF(PROCESS_WHITELIST)
 
 IF(BUILD_SELINUX)

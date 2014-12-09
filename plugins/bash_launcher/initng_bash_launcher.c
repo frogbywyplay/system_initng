@@ -50,12 +50,19 @@
 #include <initng_event_hook.h>
 
 #ifdef PROCESS_WHITELIST
+#ifdef PROCESS_WHITELIST_KERNEL
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <obfmod-ioctl.h>
+
+#else // not PROCESS_WHITELIST_KERNEL //
 #include <dlfcn.h>
 #include <stdint.h>
 
 // imported from libobf.so as dynamic plugin
 void *lib_ptr = NULL;
 static int (*_obf_exist)(const char *db_path, const char *input) = NULL;
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 INITNG_PLUGIN_MACRO;
@@ -130,6 +137,26 @@ static void bash_this(const char *bash_code, active_db_h * s,
 	argtmp[i++] = NULL;
 
 #ifdef PROCESS_WHITELIST
+#ifdef PROCESS_WHITELIST_KERNEL
+	int whitelist_fd = 0;
+	whitelist_fd = open("/dev/whitelist_initng", O_RDWR);
+	if(whitelist_fd == -1){
+		F_("bash_this(): Cannot open whitelist!\n ERROR!\n");
+	#ifndef PROCESS_WHITELIST_KERNEL_DEV
+		goto free_and_exit;
+	#endif
+	}
+	obf_ioctl_arg_t whitelist_arg;
+	whitelist_arg.str = bash_code;
+	if (whitelist_fd != -1 && ioctl(whitelist_fd, IOCTL_OBF_EXIST, &whitelist_arg) < 0) {
+		F_("bash_this(): Unauthenticated script!\n ERROR!\n");
+	#ifndef PROCESS_WHITELIST_KERNEL_DEV
+		goto free_and_exit;
+	#endif
+	}
+	if(whitelist_fd != -1)
+		close(whitelist_fd);
+#else // not PROCESS_WHITELIST_KERNEL //
 	int obj_result = _obf_exist("/etc/initng/initng_whitelist", bash_code);
 	if(obj_result == -1) {
 		F_("bash_this(): Unauthenticated script!\n ERROR!\n");
@@ -139,6 +166,7 @@ static void bash_this(const char *bash_code, active_db_h * s,
 		F_("bash_this(): Error using libobf (db : /usr/share/initng_whitelist)!\n ERROR!\n");
 		goto free_and_exit;
 	}
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 #if 0
@@ -225,6 +253,7 @@ int module_init(int api_version)
 	}
 
 #ifdef PROCESS_WHITELIST
+#ifndef PROCESS_WHITELIST_KERNEL
 	// Load the obfuscation (libobf.so) plugin
 	lib_ptr = dlopen("/usr/lib/libobf.so", RTLD_NOW );
 	if(!lib_ptr)
@@ -238,6 +267,7 @@ int module_init(int api_version)
 		fprintf(stderr, "Cannot find 'obf_exist' in shared lib\n");
 		return (FALSE);
 	}
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 
@@ -252,11 +282,13 @@ void module_unload(void)
 {
 
 #ifdef PROCESS_WHITELIST
+#ifndef PROCESS_WHITELIST_KERNEL
 	if(lib_ptr)
 	{
 		dlclose(lib_ptr);
 		lib_ptr = NULL;
 	}
+#endif // PROCESS_WHITELIST_KERNEL //
 #endif // PROCESS_WHITELIST //
 
 	initng_service_data_type_unregister(&SCRIPT);
