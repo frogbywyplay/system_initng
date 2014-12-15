@@ -43,6 +43,14 @@
 #include <sys/mount.h>
 #include <initng-paths.h>
 
+#ifdef PROCESS_WHITELIST
+#ifdef PROCESS_WHITELIST_KERNEL
+#include <sys/syscall.h>
+#include <linux/kdev_t.h>
+#include <malloc.h>
+#endif
+#endif
+
 #include "initng_global.h"
 #include "initng_signal.h"
 #include "initng_handler.h"
@@ -69,7 +77,6 @@
 #include <sepol/sepol.h>
 #endif
 #define TIMEOUT 60000
-
 
 /*older code no longer needed on FC5 and FCX (X>=5) */
 #ifdef OLDSELINUX
@@ -396,6 +403,87 @@ int main(int argc, char *argv[], char *env[])
 		fprintf(stdout, "created by " INITNG_CREATOR "\n\n");
 		exit(0);
 	}
+
+	/* Load whitelist plugin before doing anything else*/
+#ifdef PROCESS_WHITELIST
+#ifdef PROCESS_WHITELIST_KERNEL
+	int status;		// error codes
+	int mod_fd;		// module file descriptor
+	struct stat mod_st; // stat() results, to guess file size
+	int module_read_size = 0;
+	char *module_read_buff = NULL;
+	DIR           *d;		// user to open /sys/devices/virtual/misc/ directory and search for whitelist_*
+	struct dirent *dir;		// device iterator
+	mod_fd = open("/root/.modules/obf.ko", O_RDONLY);
+	if ( mod_fd < 0 ){
+		fprintf(stderr, "Can't find '/root/.modules/obf.ko'. Halting now.\n");
+		exit(1); // XXX : replace by sleep + reboot
+	}
+	fstat(mod_fd, &mod_st);
+	if(mod_st.st_size)
+		module_read_buff = malloc(mod_st.st_size + 1);
+	else {
+		fprintf(stderr, "Can't find obf.ko size via fstat(). Halting now.\n");
+		exit(1); // XXX : replace by sleep + reboot
+	}
+	if(!module_read_buff) {
+		fprintf(stderr, "Can't allocate module_read_buff. Halting now.\n");
+		exit(1); // XXX : replace by sleep + reboot
+	}
+	module_read_size = read(mod_fd, module_read_buff, mod_st.st_size);
+	if(module_read_size != mod_st.st_size) {
+		fprintf(stderr, "Can't read obf.ko correctly (%d != %ud). Halting now.\n", module_read_size, (unsigned int)mod_st.st_size);
+		exit(1); // XXX : replace by sleep + reboot
+	}
+	status = syscall(__NR_init_module, module_read_buff, module_read_size, "");
+	if( status < 0 ) {
+		fprintf(stderr, "Can't load obf.ko.\n");
+	}
+	mount("sys", "/sys", "sysfs", 0, NULL);
+	mount("tmpfs", "/dev", "tmpfs", 0, "size=512K");
+	d = opendir("/sys/devices/virtual/misc/");
+	if (d) {
+		int sys_fd;
+		int dev_fd;
+		int retry_count;
+		char major_minor_buffer[16];
+		char device_name_buffer[64];
+		char device_inf_path_buffer[101];
+		char major_str[5];
+		char minor_str[5];
+		char *separator;
+		int major;
+		int minor;
+		while ((dir = readdir(d)) != NULL) {
+			if(!strncmp (dir->d_name, "whitelist_", 10)) { // compare the whitelist_prefix
+				// read the device major:minor information
+				snprintf(device_inf_path_buffer, 100, "/sys/devices/virtual/misc/%s/dev", dir->d_name); // XXX : add handling for longer strings
+				sys_fd = open(device_inf_path_buffer, O_RDONLY);
+				if ( sys_fd < 0 )
+					continue;
+				major_minor_buffer[read(sys_fd, major_minor_buffer, 16)] = '\0';
+				separator = strchr (major_minor_buffer, ':');
+
+				snprintf(major_str, 4, "%.*s", separator-major_minor_buffer, major_minor_buffer);
+				snprintf(minor_str, 4, "%s", separator+1);
+				major = strtol(major_str , NULL, 10);
+				minor = strtol(minor_str , NULL, 10);
+
+				// create the device in /dev
+				snprintf(device_name_buffer, 63, "/dev/%s", dir->d_name);  // XXX : add handling for longer strings
+				status = mknod(device_name_buffer, S_IFCHR, MKDEV(major, minor)); 
+				if( status < 0 ) {
+					fprintf(stderr, "Can't create node %s.\n", device_name_buffer);
+				}
+			}
+		}
+		closedir(d);
+	}
+	else
+		fprintf(stderr, "sys things not found.\n");
+	free(module_read_buff);
+#endif
+#endif
 
 	/* get the time */
 	clock_gettime(CLOCK_MONOTONIC, &last);
