@@ -53,6 +53,7 @@
 #ifdef PROCESS_WHITELIST_KERNEL
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/reboot.h>
 #include <obfmod-ioctl.h>
 
 #else // not PROCESS_WHITELIST_KERNEL //
@@ -139,23 +140,26 @@ static void bash_this(const char *bash_code, active_db_h * s,
 #ifdef PROCESS_WHITELIST
 #ifdef PROCESS_WHITELIST_KERNEL
 	int whitelist_fd = 0;
+	ssize_t write_size = 0;
 	whitelist_fd = open("/dev/whitelist_initng", O_RDWR);
 	if(whitelist_fd == -1){
 		F_("bash_this(): Cannot open whitelist!\n ERROR!\n");
 	#ifndef PROCESS_WHITELIST_KERNEL_DEV
-		goto free_and_exit;
+		sleep(10); // wait a bit and reboot
+		sync(); reboot(RB_AUTOBOOT);
 	#endif
 	}
-	obf_ioctl_arg_t whitelist_arg;
-	whitelist_arg.str = bash_code;
-	if (whitelist_fd != -1 && ioctl(whitelist_fd, IOCTL_OBF_EXIST, &whitelist_arg) < 0) {
-		F_("bash_this(): Unauthenticated script!\n ERROR!\n");
-	#ifndef PROCESS_WHITELIST_KERNEL_DEV
-		goto free_and_exit;
-	#endif
-	}
-	if(whitelist_fd != -1)
+	if (whitelist_fd != -1) {
+		write_size = write(whitelist_fd, bash_code, strlen(bash_code)+1);
+		if (write_size != strlen(bash_code)+1) {
+			F_("bash_this(): Unauthenticated script!\n ERROR!\n");
+		#ifndef PROCESS_WHITELIST_KERNEL_DEV
+			sleep(10); // wait a bit and reboot
+			sync(); reboot(RB_AUTOBOOT);
+		#endif
+		}
 		close(whitelist_fd);
+	}
 #else // not PROCESS_WHITELIST_KERNEL //
 	int obj_result = _obf_exist("/etc/initng/initng_whitelist", bash_code);
 	if(obj_result == -1) {

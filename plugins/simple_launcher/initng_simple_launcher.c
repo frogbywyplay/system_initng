@@ -50,7 +50,7 @@
 #ifdef PROCESS_WHITELIST_KERNEL
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include <obfmod-ioctl.h>
+#include <sys/reboot.h>
 
 #else // not PROCESS_WHITELIST_KERNEL //
 #include <dlfcn.h>
@@ -377,23 +377,26 @@ static int simple_exec(active_db_h * service, process_h * process)
 #ifdef PROCESS_WHITELIST
 #ifdef PROCESS_WHITELIST_KERNEL
 		int whitelist_fd = 0;
+		ssize_t write_size = 0;
 		whitelist_fd = open("/dev/whitelist_initng", O_RDWR);
 		if(whitelist_fd == -1){
 			F_("simple_run(): Cannot open whitelist!\n ERROR!\n");
 		#ifndef PROCESS_WHITELIST_KERNEL_DEV
-			continue;
+			sleep(10); // wait a bit and reboot
+			sync(); reboot(RB_AUTOBOOT);
 		#endif
 		}
-		obf_ioctl_arg_t whitelist_arg;
-		whitelist_arg.str = exec;
-		if (whitelist_fd != -1 && ioctl(whitelist_fd, IOCTL_OBF_EXIST, &whitelist_arg) < 0) {
-			F_("simple_run(): Unauthenticated daemon '%s'!\n ERROR!\n", exec);
-		#ifndef PROCESS_WHITELIST_KERNEL_DEV
-			continue;
-		#endif
-		}
-		if(whitelist_fd != -1)
+		if (whitelist_fd != -1) {
+			write_size = write(whitelist_fd, exec, strlen(exec)+1);
+			if (write_size != strlen(exec)+1) {
+				F_("simple_run(): Unauthenticated script!\n ERROR!\n");
+			#ifndef PROCESS_WHITELIST_KERNEL_DEV
+				sleep(10); // wait a bit and reboot
+				sync(); reboot(RB_AUTOBOOT);
+			#endif
+			}
 			close(whitelist_fd);
+		}
 #else // not PROCESS_WHITELIST_KERNEL //
 		int obj_result = _obf_exist("/etc/initng/initng_whitelist", exec);
 		if(obj_result == -1) {
@@ -440,23 +443,26 @@ static int simple_run(active_db_h * service, process_h * process)
 #ifdef PROCESS_WHITELIST
 #ifdef PROCESS_WHITELIST_KERNEL
 	int whitelist_fd = 0;
+	ssize_t write_size = 0;
 	whitelist_fd = open("/dev/whitelist_initng", O_RDWR);
 	if(whitelist_fd == -1){
 		F_("simple_run(): Cannot open whitelist!\n ERROR!\n");
 	#ifndef PROCESS_WHITELIST_KERNEL_DEV
-		return (FALSE);
+		sleep(10); // wait a bit and reboot
+		sync(); reboot(RB_AUTOBOOT);
 	#endif
 	}
-	obf_ioctl_arg_t whitelist_arg;
-	whitelist_arg.str = exec;
-	if (whitelist_fd != -1 && ioctl(whitelist_fd, IOCTL_OBF_EXIST, &whitelist_arg) < 0) {
-		F_("simple_run(): Unauthenticated daemon '%s'!\n ERROR!\n", exec);
-	#ifndef PROCESS_WHITELIST_KERNEL_DEV
-		return (FALSE);
-	#endif
-	}
-	if(whitelist_fd != -1)
+	if (whitelist_fd != -1) {
+		write_size = write(whitelist_fd, exec, strlen(exec)+1);
+		if (write_size != strlen(exec)+1) {
+			F_("simple_run(): Unauthenticated script!\n ERROR!\n");
+		#ifndef PROCESS_WHITELIST_KERNEL_DEV
+			sleep(10); // wait a bit and reboot
+			sync(); reboot(RB_AUTOBOOT);
+		#endif
+		}
 		close(whitelist_fd);
+	}
 #else // not PROCESS_WHITELIST_KERNEL //
 	int obj_result = _obf_exist("/etc/initng/initng_whitelist", exec);
 	if(obj_result == -1) {
