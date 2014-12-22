@@ -52,9 +52,7 @@
 #ifdef PROCESS_WHITELIST
 #ifdef PROCESS_WHITELIST_KERNEL
 #include <fcntl.h>
-#include <sys/ioctl.h>
 #include <sys/reboot.h>
-#include <obfmod-ioctl.h>
 
 #else // not PROCESS_WHITELIST_KERNEL //
 #include <dlfcn.h>
