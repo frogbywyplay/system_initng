@@ -417,27 +417,28 @@ int main(int argc, char *argv[], char *env[])
 	mod_fd = open("/root/.modules/obf.ko", O_RDONLY);
 	if ( mod_fd < 0 ){
 		fprintf(stderr, "Can't find '/root/.modules/obf.ko'. Halting now.\n");
-		exit(1); // XXX : replace by sleep + reboot
+		sleep(10); sync(); reboot(RB_AUTOBOOT); // wait a bit and reboot
 	}
 	fstat(mod_fd, &mod_st);
 	if(mod_st.st_size)
 		module_read_buff = malloc(mod_st.st_size + 1);
 	else {
 		fprintf(stderr, "Can't find obf.ko size via fstat(). Halting now.\n");
-		exit(1); // XXX : replace by sleep + reboot
+		sleep(10); sync(); reboot(RB_AUTOBOOT); // wait a bit and reboot
 	}
 	if(!module_read_buff) {
 		fprintf(stderr, "Can't allocate module_read_buff. Halting now.\n");
-		exit(1); // XXX : replace by sleep + reboot
+		sleep(10); sync(); reboot(RB_AUTOBOOT); // wait a bit and reboot
 	}
 	module_read_size = read(mod_fd, module_read_buff, mod_st.st_size);
 	if(module_read_size != mod_st.st_size) {
 		fprintf(stderr, "Can't read obf.ko correctly (%d != %ud). Halting now.\n", module_read_size, (unsigned int)mod_st.st_size);
-		exit(1); // XXX : replace by sleep + reboot
+		sleep(10); sync(); reboot(RB_AUTOBOOT); // wait a bit and reboot
 	}
 	status = syscall(__NR_init_module, module_read_buff, module_read_size, "");
 	if( status < 0 ) {
 		fprintf(stderr, "Can't load obf.ko.\n");
+		sleep(10); sync(); reboot(RB_AUTOBOOT); // wait a bit and reboot
 	}
 	mount("sys", "/sys", "sysfs", 0, NULL);
 	mount("tmpfs", "/dev", "tmpfs", 0, "size=512K");
