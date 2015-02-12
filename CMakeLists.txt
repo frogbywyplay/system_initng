@@ -112,6 +112,13 @@ OPTION(PROCESS_WHITELIST "Build initng launchers with process whitelisting suppo
 OPTION(PROCESS_WHITELIST_KERNEL "Process whitelisting support use the libobf kernel module instead of the plugin (require PROCESS_WHITELIST)" OFF)
 OPTION(PROCESS_WHITELIST_KERNEL_DEV "Only print errors without forced failure" OFF)
 
+OPTION(INITNG_REBOOT_ON_ERROR "Reboot on error during initng start process" OFF)
+
+IF(INITNG_REBOOT_ON_ERROR)
+	ADD_DEFINITIONS(-DINITNG_REBOOT_ON_ERROR)
+	SET(CMAKE_C_FLAGS "-DINITNG_REBOOT_ON_ERROR  ${CMAKE_C_FLAGS}")
+ENDIF(INITNG_REBOOT_ON_ERROR)
+
 IF(PROCESS_WHITELIST)
 	ADD_DEFINITIONS(-DPROCESS_WHITELIST)
 	IF(PROCESS_WHITELIST_KERNEL)
