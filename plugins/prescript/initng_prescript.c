@@ -108,6 +108,18 @@ static int is_file(const char *path)
 	return 0;
 }
 
+#ifdef STARTERS
+static char * generate_script_from_dir(const char *path)
+{
+	char *str_buffer = NULL;
+	char *starter_file_name = NULL;
+	asprintf(&starter_file_name, "%s/starter", path);
+	if(is_file(starter_file_name)) {
+		asprintf(&str_buffer, "/bin/sh %s/starter", path);
+	}
+	return str_buffer;
+}
+#else
 static char * generate_script_from_dir(const char *path)
 {
 	struct dirent **namelist;
@@ -127,7 +139,8 @@ static char * generate_script_from_dir(const char *path)
 	int i;
 	/* calculate len */
 	for(i = 0; i < n; i++) {
-		if(namelist[i]->d_name[0] != '.') {
+		if(namelist[i]->d_name[0] != '.' &&
+				strcmp("starter", namelist[i]->d_name) != 0) {
 			char *dir_file_path = NULL;
 			asprintf(&dir_file_path, "%s/%s", path, namelist[i]->d_name);
 			if(is_file(dir_file_path)) {
@@ -146,7 +159,8 @@ static char * generate_script_from_dir(const char *path)
 	char *str_buffer = NULL;
 	if(n_valid) str_buffer = i_calloc(1, len);
 	for(i = 0; i < n; i++) {
-		if(n_valid && namelist[i]->d_name[0] != '.') {
+		if(n_valid && namelist[i]->d_name[0] != '.' &&
+				strcmp("starter", namelist[i]->d_name) != 0) {
 			strcat(str_buffer, str_prefix);
 			strcat(str_buffer, path);
 			strcat(str_buffer, "/");
@@ -163,6 +177,7 @@ static char * generate_script_from_dir(const char *path)
 
 	return str_buffer;
 }
+#endif
 
 static char * generate_script_by_service(service_cache_h *service)
 {
@@ -217,8 +232,13 @@ static int service_add_parse(s_event *event)
 	}
 
 	stype_h *type_service = initng_service_type_get_by_name("service");
+#ifdef STARTERS
+	s_entry *script = initng_service_data_type_find("exec");
+	s_entry *script_opt = initng_service_data_type_find("exec_opt");
+#else
 	s_entry *script = initng_service_data_type_find("script");
 	s_entry *script_opt = initng_service_data_type_find("script_opt");
+#endif
 
 	/* attributes to copy to child service */
 	const char *to_copy[] = {"need", "use", "require", "wait_for_dbus", "env", "stdall"};

@@ -49,6 +49,7 @@ INSTALL_FILES(${INCLUDE_INSTALL_DIR}/initng FILES initng-paths.h)
 OPTION(SERVICE_CACHE "Include functions for separate data with temporary data inside of initng core, needed by the i_parser and friends" ON)
 OPTION(BUILD_ALSO "Build also plugin" ON)
 OPTION(BUILD_PRESCRIPT "Build prescript plugin" ON)
+OPTION(BUILD_PRESCRIPT_STARTERS "Build prescript plugin with starters options" OFF)
 OPTION(BUILD_BASH_LAUNCHER "Build bash_launcher plugin" ON)
 OPTION(BUILD_CHDIR "Build chdir plugin" ON)
 OPTION(BUILD_CHROOT "Build chroot plugin" ON)
@@ -157,6 +158,10 @@ IF(DEBUG)
 
 	SET(CMAKE_C_FLAGS "-DDEBUG -g -Wmissing-prototypes -Wmissing-declarations -Wstrict-prototypes -Wimplicit -Wredundant-decls -Wnested-externs -Wwrite-strings -Wsign-compare -Winline -Wswitch -Wreturn-type -Wparentheses -Wmissing-braces -Wformat -Wformat-nonliteral -Wformat-security -Wsequence-point -Wundef -Wunused -Wcomment ${CMAKE_C_FLAGS}")
 ENDIF(DEBUG)
+
+IF(BUILD_PRESCRIPT_STARTERS)
+	ADD_DEFINITIONS(-DSTARTERS)
+ENDIF(BUILD_PRESCRIPT_STARTERS)
 
 IF(COUNT_ME)
 	EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/count_me.sh)
