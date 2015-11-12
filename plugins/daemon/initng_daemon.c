@@ -904,7 +904,6 @@ static void handle_killed_daemon(active_db_h * daemon, process_h * process)
 	rcode = process->r_code;
 	initng_process_db_free(process);
 
-#ifndef INITNG_REBOOT_ON_ERROR
 	/*
 	 * Make sure r_code don't signal error (can be override by UP_ON_FAILURE.
 	 */
@@ -944,55 +943,6 @@ static void handle_killed_daemon(active_db_h * daemon, process_h * process)
 
 	/* else fail by RCODE failure */
 	initng_common_mark_service(daemon, &DAEMON_FAIL_START_RCODE);
-#else
-	/* if exit with sucess */
-	if (WEXITSTATUS(rcode) == 0)
-	{
-		/* OK! now daemon is STOPPED! */
-		if(WTERMSIG(rcode) == 15)
-		{
-			/* daemon took a SIGTERM */
-			initng_common_mark_service(daemon, &DAEMON_STOPPED);
-			return;
-		}
-	}
-
-	/*
-	 *  If a daemon is killed, we restart the box
-	 */
-
-
-	F_("A daemon is dead. Should not happen! Reboot of the box...\n");
-
-#ifdef SELINUX
-	if (is_selinux_enabled > 0)
-	{
-		security_context_t *contextlist = NULL;
-
-		if (get_ordered_context_list("root", 0, &contextlist) > 0)
-		{
-			if (setexeccon(contextlist[0]) != 0)
-				fprintf(stderr, "setexeccon failed\n");
-			freeconary(contextlist);
-		}
-	}
-#endif
-
-	const char *reboot_argv[] = { "/sbin/reboot", "-f", NULL };
-	const char *reboot_env[] = { NULL };
-	int i = 0;
-
-	/* make sure all fds but stdin, stdout, stderr is closed */
-	for (i = 3; i <= 1013; i++)
-	{
-		close(i);
-	}
-
-	/* launch the reboot */
-	execve(reboot_argv[0], (char **) reboot_argv,
-			(char **) reboot_env);
-
-#endif
 }
 
 /*
