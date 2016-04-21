@@ -257,9 +257,16 @@ void parse_control_input(f_module_h * from_module, e_fdw what)
 
 	switch (request.runlevel)
 	{
-			/* halting */
-		case '0':
+			/* halt */
+		case 'h':
 			D_("Halting.\n");
+			g.when_out = THEN_HALT;
+			initng_handler_stop_all();
+			return;
+
+			/* poweroff */
+		case '0':
+			D_("Powering off.\n");
 			g.when_out = THEN_POWEROFF;
 			initng_handler_stop_all();
 			return;
