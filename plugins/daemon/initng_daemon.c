@@ -877,48 +877,10 @@ static void handle_killed_daemon(active_db_h * daemon, process_h * process)
 	assert(daemon->current_state);
 	assert(daemon->current_state->state_name);
 	assert(process);
-
-	/* Set local rcode */
-	int rcode = process->r_code;
+	int rcode;
 
 	D_("handle_killed_start(%s): initial status: \"%s\".\n",
 	   daemon->name, daemon->current_state->state_name);
-
-#ifdef INITNG_REBOOT_ON_ERROR
-	/* If daemon has been stopped by any signal except SIGTERM or SIGKILL, we assume it crashed */
-	if (WIFSIGNALED(rcode) == 1 && WTERMSIG(rcode) != 15 && WTERMSIG(rcode) != 9)
-	{
-		P_("A daemon has crashed. Rebooting...\n");
-
-#ifdef SELINUX
-		if (is_selinux_enabled > 0)
-		{
-			security_context_t *contextlist = NULL;
-
-			if (get_ordered_context_list("root", 0, &contextlist) > 0)
-			{
-				if (setexeccon(contextlist[0]) != 0)
-					fprintf(stderr, "setexeccon failed\n");
-				freeconary(contextlist);
-			}
-		}
-#endif
-
-		const char *reboot_argv[] = { "/sbin/reboot", "-f", NULL };
-		const char *reboot_env[] = { NULL };
-		int i = 0;
-
-		/* make sure all fds but stdin, stdout, stderr is closed */
-		for (i = 3; i <= 1013; i++)
-		{
-			close(i);
-		}
-
-		/* launch the reboot */
-		execve(reboot_argv[0], (char **) reboot_argv,
-				(char **) reboot_env);
-	}
-#endif
 
 	/*
 	 * Youst run if we checks for PID FILE
@@ -938,7 +900,8 @@ static void handle_killed_daemon(active_db_h * daemon, process_h * process)
 		return;
 	}
 
-	/* Free process */
+	/* Set local rcode, and free process */
+	rcode = process->r_code;
 	initng_process_db_free(process);
 
 	/*
@@ -951,6 +914,7 @@ static void handle_killed_daemon(active_db_h * daemon, process_h * process)
 		initng_common_mark_service(daemon, &DAEMON_FAIL_START_SIGNAL);
 		return;
 	}
+
 
 	/* if exit with sucess */
 	if (WEXITSTATUS(rcode) == 0)
