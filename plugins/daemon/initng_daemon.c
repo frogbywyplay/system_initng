@@ -27,6 +27,10 @@
 #include <sys/ioctl.h>						/* ioctl() */
 #include <stdio.h>							/* printf() */
 #include <stdlib.h>							/* free() exit() */
+#ifdef INITNG_REBOOT_ON_ERROR
+#include <unistd.h>
+#include <linux/reboot.h>
+#endif
 #include <sys/reboot.h>						/* reboot() RB_DISABLE_CAD */
 #include <assert.h>
 #include <errno.h>
@@ -892,6 +896,13 @@ static void handle_killed_daemon(active_db_h * daemon, process_h * process)
 		return;
 	}
 
+#ifdef INITNG_REBOOT_ON_ERROR
+	if (reboot(LINUX_REBOOT_CMD_RESTART) == -1) {
+		int status = errno;
+		fprintf(stderr, "reboot failed : %s\n", strerror(status));
+		return;
+	}
+#else
 	/* This service are gonna respawn, no need to set it stopped */
 	if (check_respawn(daemon))
 	{
@@ -943,6 +954,7 @@ static void handle_killed_daemon(active_db_h * daemon, process_h * process)
 
 	/* else fail by RCODE failure */
 	initng_common_mark_service(daemon, &DAEMON_FAIL_START_RCODE);
+#endif
 }
 
 /*
