@@ -36,8 +36,6 @@ void initng_main_su_login(void);
 void initng_main_start_extra_services(void);
 int initng_main_blacklist_add(const char *sname);
 
-void initng_main_segfault(void);
-
 void initng_main_set_runlevel(const char *runlevel);
 
 #endif

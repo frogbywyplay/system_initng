@@ -105,17 +105,6 @@ void initng_signal_handle_sigchild(void)
 	}
 }
 
-/* called by signal SIGSEGV */
-static void sigsegv(int sig)
-{
-	(void) sig;
-	printf("SEGFAULTED!\n");
-	initng_main_segfault();
-}
-
-
-
-
 static void set_signal(int sig)
 {
 	int i;
@@ -174,15 +163,6 @@ void initng_signal_enable(void)
 	/* SA_NOCLDSTOP = Don't give initng signal if we kill the app with SIGSTOP */
 	/* SA_RESTART = call signal over again next time */
 	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
-
-	/* segfault */
-	if (g.i_am == I_AM_INIT)
-	{
-		sa.sa_handler = sigsegv;
-		sigaction(SIGSEGV, &sa, 0);
-		sigaction(SIGABRT, &sa, 0);
-	}
-
 	sa.sa_handler = set_signal;
 	sigaction(SIGCHLD, &sa, 0);				/* Dead children */
 	sigaction(SIGINT, &sa, 0);				/* ctrl-alt-del */
