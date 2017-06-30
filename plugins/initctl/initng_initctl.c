@@ -51,7 +51,9 @@
 
 #include <initng-paths.h>
 
+#ifdef UTMP_SUPPORT
 #include <utmp.h>
+#endif
 #include "initreq.h"
 
 INITNG_PLUGIN_MACRO;
@@ -62,7 +64,9 @@ int utmp_stored = FALSE;
 static void parse_control_input(f_module_h * mod, e_fdw what);
 static void initctl_control_close(void);
 static int initctl_control_open(void);
+#ifdef UTMP_SUPPORT
 static void makeutmp(int runlevel);
+#endif
 static void initng_reload(void);
 
 static int pipe_fd_handler(s_event * event);
@@ -317,6 +321,7 @@ void parse_control_input(f_module_h * from_module, e_fdw what)
 	}
 }
 
+#ifdef UTMP_SUPPORT
 static void makeutmp(int runlevel)
 {
 	D_("Making utmp file for runlevel %d\n", runlevel);
@@ -351,6 +356,7 @@ static void makeutmp(int runlevel)
 	endutent();
 	return;
 }
+#endif
 
 static void initng_reload(void)
 {
@@ -385,6 +391,7 @@ static int hup_request(s_event * event)
 	return (TRUE);
 }
 
+#ifdef UTMP_SUPPORT
 static int is_system_up(s_event * event)
 {
 	h_sys_state * state;
@@ -401,7 +408,7 @@ static int is_system_up(s_event * event)
 
 	return (TRUE);
 }
-
+#endif
 
 int module_init(int api_version)
 {
@@ -423,7 +430,10 @@ int module_init(int api_version)
 	initctl_control_open();
 
 	if ((!initng_event_hook_register(&EVENT_SIGNAL, &hup_request))
-		|| (!initng_event_hook_register(&EVENT_SYSTEM_CHANGE, &is_system_up)))
+#ifdef UTMP_SUPPORT
+		|| (!initng_event_hook_register(&EVENT_SYSTEM_CHANGE, &is_system_up))
+#endif
+		)
 	{
 		F_("Fail add hook!\n");
 		return (FALSE);
@@ -444,6 +454,8 @@ void module_unload(void)
 	initctl_control_close();
 	/* remove all hooks */
 	initng_event_hook_unregister(&EVENT_FD_WATCHER, &pipe_fd_handler);
+#ifdef UTMP_SUPPORT
 	initng_event_hook_unregister(&EVENT_SYSTEM_CHANGE, &is_system_up);
+#endif
 	initng_event_hook_unregister(&EVENT_SIGNAL, &hup_request);
 }
