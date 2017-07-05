@@ -186,7 +186,7 @@ void d_set_string_var(s_entry * type, char *vn, data_head * d, char *string)
 
 	if (!type)
 	{
-		F_("Type can't be zero!\n");
+		D_("Type can't be zero!\n");
 		return;
 	}
 
