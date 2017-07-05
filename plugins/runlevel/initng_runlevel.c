@@ -282,7 +282,7 @@ static void init_RUNLEVEL_START_MARKED(active_db_h * new_runlevel)
 
 					if (service_to_stop)
 					{
-						W_("Stopping service %s, not in new service %s\n",
+						D_("Stopping service %s, not in new service %s\n",
 						   service_to_stop->name, new_runlevel->name);
 						initng_handler_stop_service(service_to_stop);
 					}
