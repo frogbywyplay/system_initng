@@ -141,7 +141,8 @@ static void initctl_control_close(void)
 
 static int initctl_control_open(void)
 {
-        struct passwd* pwd;
+	struct passwd* pwd;
+	int orig_fd = -1;
 
 	D_("initctl control open (%d)\n", pipe_fd.fds);
 	/* First, try to create /dev/initctl if not present. */
@@ -180,9 +181,30 @@ static int initctl_control_open(void)
 	/* If the pipe isn't open, try to open it. */
 	if (pipe_fd.fds < 3)
 	{
-		/* it the file descriptor has to be over 2 to be valid */
-		if ((pipe_fd.fds = open(INIT_FIFO, O_RDWR | O_NONBLOCK)) < 3)
-			return (FALSE);
+		/* it the file descriptor has to be over 2 to be valid... */
+		if ((pipe_fd.fds = open(INIT_FIFO, O_RDWR | O_NONBLOCK)) < 3) {
+			/* ... but it's not always true.
+			 * In case /dev/console is not available, fd 0-2 are not opened.
+			 * As this plugin is weirdly designed and assumes that pretty much everywhere
+			 * the fd of /dev/initctl is >3, the safer way to solve an issue when
+			 * /dev/console is not available is to force the fd to 3 */
+
+			/* First, we check the success of the open command */
+			if (pipe_fd.fds < 0)
+				return (FALSE);
+
+			/* Now we can force the fd to 3 */
+			D_("/dev/console is apparently not available. Trying to duplicate /dev/initctl descriptor...\n");
+			orig_fd = pipe_fd.fds;
+			if ((pipe_fd.fds = fcntl(orig_fd, F_DUPFD, 3)) < 0) {
+				F_("Failed to duplicate /dev/initctl descriptor (%s)\n", strerror(errno));
+				(void)close(orig_fd);
+				return (FALSE);
+			}
+			(void)close(orig_fd);
+
+			D_("/dev/initctl has been duplicated\n");
+		}
 
 		D_("Opened on fd %i\n", pipe_fd.fds);
 		fstat(pipe_fd.fds, &st);
