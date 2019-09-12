@@ -657,6 +657,15 @@ int main(int argc, char *argv[], char *env[])
 		{
 			int i;
 
+			/* Check for sigchld */
+			if (signal_got_sigchld)
+			{
+				signal_got_sigchld = FALSE;
+				initng_signal_handle_sigchild();
+			}
+
+			/* check others signals */
+
 			for (i = 0; i < SIGNAL_STACK; i++)
 			{
 				if (signals_got[i] == -1)
@@ -666,10 +675,6 @@ int main(int argc, char *argv[], char *env[])
 
 				switch (signals_got[i])
 				{
-						/* dead children */
-					case SIGCHLD:
-						initng_signal_handle_sigchild();
-						break;
 					case SIGALRM:
 						/*initng_plugin_callers_alarm(); */
 						initng_handler_run_alarm();

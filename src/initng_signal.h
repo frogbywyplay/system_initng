@@ -24,6 +24,7 @@
 #define SIGNAL_STACK 10
 
 extern volatile int signals_got[SIGNAL_STACK];
+extern volatile int signal_got_sigchld;
 
 
 /* this initiates signal control */

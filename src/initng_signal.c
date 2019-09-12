@@ -36,6 +36,7 @@
 
 
 volatile int signals_got[SIGNAL_STACK];
+volatile int signal_got_sigchld;
 
 struct sigaction sa;
 
@@ -105,6 +106,12 @@ void initng_signal_handle_sigchild(void)
 	}
 }
 
+static void sigchild(int sig) {
+	(void) sig;
+	//write(STDERR_FILENO, "Get SIGCHLD\n", sizeof("Get SIGCHLD\n") -1);
+	signal_got_sigchld = TRUE;
+}
+
 static void set_signal(int sig)
 {
 	int i;
@@ -156,15 +163,23 @@ void initng_signal_enable(void)
 	/* i don't get this one */
 	sa.sa_sigaction = 0;
 
+	/* SA_NOCLDSTOP = Don't give initng signal if we kill the app with SIGSTOP */
+	/* SA_RESTART = call signal over again next time */
+	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+
+	/* dedicated signal handler for dead children */
+	signal_got_sigchld = FALSE;
+	sa.sa_handler = sigchild;
+	sigaction(SIGCHLD, &sa, 0);             /* Dead children */
+
+	/* signal handler for other signals */
 	/* clear signal */
 	for (i = 0; i < SIGNAL_STACK; i++)
 		signals_got[i] = -1;
 
-	/* SA_NOCLDSTOP = Don't give initng signal if we kill the app with SIGSTOP */
-	/* SA_RESTART = call signal over again next time */
-	sa.sa_flags = SA_RESTART | SA_NOCLDSTOP;
+	/* reset signal set */
+	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = set_signal;
-	sigaction(SIGCHLD, &sa, 0);				/* Dead children */
 	sigaction(SIGINT, &sa, 0);				/* ctrl-alt-del */
 	sigaction(SIGWINCH, &sa, 0);			/* keyboard request */
 	sigaction(SIGALRM, &sa, 0);				/* alarm, something has to be checked */
