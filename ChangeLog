@@ -1,3 +1,5 @@
 
  Please check up subversion log for detailed changelog.
-    - Jimmy Wennlund <jimmy.wennlund@gmail.com>
+    - Jimmy Wennlund <jimmy.wennlund@gmail.com>0.6.10.2.17 -- 13/09/2019
+- Add dedicated signal handler for dead children detecttion, to prevent race condition with others signals
+
