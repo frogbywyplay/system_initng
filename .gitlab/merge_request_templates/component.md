@@ -37,3 +37,11 @@
 # Functional tests results
 
 <Post the result of test-app, integration or manual tests>
+
+# Reviewers
+
+| @username |      name      
+|----------|----------------
+| @agourdon | Arnaud GOURDON
+| @dcaleca  | Daniel Caleca
+
