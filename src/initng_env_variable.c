@@ -54,7 +54,11 @@ const char *initng_environ[] = {
 	"INIT_VERSION=" INITNG_VERSION,
 	"INITNG_PLUGIN_DIR=" INITNG_PLUGIN_DIR,
 	"INITNG_ROOT=" INITNG_ROOT,
+#ifdef INITNG_EXPAND_EXECUTABLE_PATH
 	"PATH=/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/opt/bin",
+#else
+	"PATH=",
+#endif
 	"HOME=/root",
 	"USER=root",
 	"TERM=linux",
