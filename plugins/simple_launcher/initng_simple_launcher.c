@@ -503,6 +503,7 @@ static int simple_run(active_db_h * service, process_h * process)
 	/* if it not contains a full path */
 	if (argv[0][0] != '/')
 	{
+#ifdef INITNG_EXPAND_EXECUTABLE_PATH
 		argv0 = expand_exec(argv[0]);
 		if (!argv0)
 		{
@@ -516,6 +517,14 @@ static int simple_run(active_db_h * service, process_h * process)
 
 		free(argv[0]);
 		argv[0] = argv0; // Check this before freeing!
+#else
+		F_("SERVICE: %s %s -- expanding path is disabled and '%s' don't work, absolute path of executable must be used.\n",
+		   service->name, process->pt->name, argv[0]);
+		split_delim_free(argv);
+		argv = NULL;
+		fix_free(exec_fixed, exec);
+		return (FALSE);
+#endif /* INITNG_EXPAND_EXECUTABLE_PATH */
 	}
 
 
