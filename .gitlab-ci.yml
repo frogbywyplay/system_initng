@@ -1,0 +1,44 @@
+stages:
+  - legal
+  - quality
+  - build
+  - test
+
+variables:
+  GROUP: "frogbywyplay"
+  MAINLINE: ""
+
+#copyright:
+#  stage: legal
+#  tags:
+#    - bash
+#  image: docker.wyplay.com/tools/copyright-updater:1.7
+#  script:
+#    - copyright-updater-ci-year.sh --ignore-file .copyright-updater.ignore
+
+trial-blackduck:
+  stage: legal
+  tags:
+    - bash
+  image: docker.wyplay.com/tools/blackduck:latest
+  script:
+    - echo "Attempting Analysis on Repository '${CI_PROJECT_PATH}' in Branch '${CI_COMMIT_REF_NAME}':"
+    - BRANCH=${MAINLINE} GROUP=${GROUP} bdu --dir .
+  only:
+    - /^wip-.*$/
+  allow_failure: true
+
+strict-blackduck:
+  stage: legal
+  tags:
+    - bash
+  image: docker.wyplay.com/tools/blackduck:latest
+  script:
+    - echo "Running Analysis on Repository '${CI_PROJECT_PATH}' in Branch '${CI_COMMIT_REF_NAME}':"
+    - BRANCH=${MAINLINE} GROUP=${GROUP} bdu --dir .
+  only:
+    refs:
+      - master
+    variables:
+      - $CI_PROJECT_NAMESPACE == "frogbywyplay"
+  allow_failure: false
