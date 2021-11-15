@@ -3,3 +3,10 @@
     - Jimmy Wennlund <jimmy.wennlund@gmail.com>0.6.10.2.17 -- 13/09/2019
 - Add dedicated signal handler for dead children detecttion, to prevent race condition with others signals
 
+0.6.10.2.18 -- 15/11/2021
+- Add .gitlab-ci.yml
+- initng_simple_launcher: add support to disable expand path of executable in Iningt script
+- src/initng_env_variable.c: add support to empty the environment variable PATH in Initng environment
+- .gitlab/merge_request_templates/component.md: added reviewers settings [skip ci]
+- Create template for merge requests.
+
